@@ -4,20 +4,18 @@ from typing import Any, Self
 import httpx
 
 from jsm._http import create_basic_client, request_json
+from jsm._schedules_common import (
+    OPS_AUTH_HINT,
+    build_timeline_params,
+    normalize_user,
+    unwrap_response,
+)
 
 logger = logging.getLogger("jsm")
 
-OPS_AUTH_HINT = (
-    " Check API token has JSM Ops scope read:ops-config:jira-service-management "
-    "(classic token from id.atlassian.com, or scoped token with Bearer via use_bearer)."
-)
 
-
-class Schedules:
-    """
-    Jira Service Management operations (on-call) schedules API.
-    Drop-in replacement for opsgenie.Schedules using JSM Ops REST API.
-    """
+class AsyncSchedules_v1:  # noqa: N801
+    """Async Jira Service Management operations (on-call) schedules API."""
 
     def __init__(self, auth: dict[str, Any]) -> None:
         cloud_id = auth["cloud_id"]
@@ -36,7 +34,7 @@ class Schedules:
 
     def _client_or_raise(self) -> httpx.AsyncClient:
         if self._client is None:
-            raise RuntimeError("Use 'async with Schedules(...)' before calling API methods")
+            raise RuntimeError("Use 'async with AsyncSchedules_v1(...)' before calling API methods")
         return self._client
 
     async def _request(self, method: str, path: str, params: dict[str, Any] | None = None) -> Any:
@@ -44,19 +42,13 @@ class Schedules:
         hint = OPS_AUTH_HINT if method == "GET" else ""
         return await request_json(client, method, path, params=params, hint=hint)
 
-    @staticmethod
-    def _unwrap_response(resp: Any) -> Any:
-        if isinstance(resp, dict) and "data" in resp:
-            return resp["data"]
-        return resp
-
     async def _get_paginated_values(self, path: str, params: dict[str, Any] | None = None) -> Any:
         params = dict(params or {})
         size = min(params.pop("size", 50), 50)
         results: list[Any] = []
         offset = 0
         while True:
-            resp = self._unwrap_response(
+            resp = unwrap_response(
                 await self._request("GET", path, params={**params, "offset": offset, "size": size})
             )
             if not isinstance(resp, dict) or "values" not in resp:
@@ -70,7 +62,7 @@ class Schedules:
 
     async def get(self, path: str, **kwargs: Any) -> Any:
         params = kwargs.get("params")
-        return self._unwrap_response(await self._request("GET", path, params=params))
+        return unwrap_response(await self._request("GET", path, params=params))
 
     async def get_schedules(self, identifier: str | None = None) -> Any:
         url = "/schedules"
@@ -91,21 +83,13 @@ class Schedules:
         identifierType: str | None = None,  # noqa: N803
         intervalUnit: str | None = None,  # noqa: N803
     ) -> Any:
-        identifier_type = identifier_type or identifierType
-        interval_unit = interval_unit or intervalUnit
-        params: dict[str, Any] = {}
-        if identifier_type:
-            params["identifierType"] = identifier_type
-        if expand is True:
-            params["expand"] = "base"
-        elif expand:
-            params["expand"] = expand
-        if interval is not None:
-            params["interval"] = interval
-        if interval_unit:
-            params["intervalUnit"] = interval_unit
-        if date:
-            params["date"] = date
+        params = build_timeline_params(
+            identifier_type=identifier_type or identifierType,
+            expand=expand,
+            interval=interval,
+            interval_unit=interval_unit or intervalUnit,
+            date=date,
+        )
         return await self.get(f"/schedules/{identifier}/timeline", params=params)
 
     async def get_schedule_rotations(self, identifier: str) -> Any:
@@ -119,10 +103,10 @@ class Schedules:
         if identifier:
             url += f"/{identifier}"
             user = await self.get(url)
-            return self._normalize_user(user)
+            return normalize_user(user)
         try:
             users = await self._get_paginated_values(url)
-            return [self._normalize_user(u) for u in users]
+            return [normalize_user(u) for u in users]
         except httpx.HTTPStatusError as exc:
             if exc.response is not None and exc.response.status_code == 404:
                 logger.warning(
@@ -131,11 +115,3 @@ class Schedules:
                 )
                 return []
             raise
-
-    @staticmethod
-    def _normalize_user(user: Any) -> Any:
-        if not isinstance(user, dict):
-            return user
-        username = user.get("username") or user.get("name") or user.get("email", "")
-        full_name = user.get("fullName") or user.get("displayName") or username
-        return {**user, "username": username, "fullName": full_name}

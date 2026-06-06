@@ -36,13 +36,26 @@ async def request_json(
     return parse_json(response)
 
 
-def create_basic_client(
+def request_json_sync(
+    client: httpx.Client,
+    method: str,
+    url: str,
+    *,
+    hint: str = "",
+    **kwargs: Any,
+) -> Any:
+    response = client.request(method, url, **kwargs)
+    raise_for_status(response, url, hint=hint)
+    return parse_json(response)
+
+
+def _basic_client_kwargs(
     auth: dict[str, Any],
     *,
     base_url: str,
     extra_headers: dict[str, str] | None = None,
     timeout: float = DEFAULT_TIMEOUT,
-) -> httpx.AsyncClient:
+) -> dict[str, Any]:
     headers = dict(JSON_HEADERS)
     if extra_headers:
         headers.update(extra_headers)
@@ -57,5 +70,24 @@ def create_basic_client(
         headers["Authorization"] = f"Bearer {token}"
     else:
         client_kwargs["auth"] = httpx.BasicAuth(auth["username"], token)
+    return client_kwargs
 
-    return httpx.AsyncClient(**client_kwargs)
+
+def create_basic_client(
+    auth: dict[str, Any],
+    *,
+    base_url: str,
+    extra_headers: dict[str, str] | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> httpx.AsyncClient:
+    return httpx.AsyncClient(**_basic_client_kwargs(auth, base_url=base_url, extra_headers=extra_headers, timeout=timeout))
+
+
+def create_basic_sync_client(
+    auth: dict[str, Any],
+    *,
+    base_url: str,
+    extra_headers: dict[str, str] | None = None,
+    timeout: float = DEFAULT_TIMEOUT,
+) -> httpx.Client:
+    return httpx.Client(**_basic_client_kwargs(auth, base_url=base_url, extra_headers=extra_headers, timeout=timeout))

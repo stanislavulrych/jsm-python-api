@@ -7,8 +7,8 @@ from jsm._http import create_basic_client, request_json
 EXPERIMENTAL_HEADERS = {"X-ExperimentalApi": "opt-in"}
 
 
-class Assets:
-    """Jira Service Management Assets API client."""
+class AsyncAssets_v1:  # noqa: N801
+    """Async Jira Service Management Assets API client."""
 
     def __init__(self, workspace_id: str, auth: dict[str, Any]) -> None:
         self._workspace_id = workspace_id
@@ -32,7 +32,7 @@ class Assets:
 
     def _client_or_raise(self) -> httpx.AsyncClient:
         if self._client is None:
-            raise RuntimeError("Use 'async with Assets(...)' before calling API methods")
+            raise RuntimeError("Use 'async with AsyncAssets_v1(...)' before calling API methods")
         return self._client
 
     async def _get(self, path: str) -> Any:

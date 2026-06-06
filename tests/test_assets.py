@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from jsm import Assets
+from jsm import AsyncAssets_v1
 
 
 @pytest.mark.asyncio
@@ -18,7 +18,7 @@ async def test_list_object_schema_sends_experimental_header() -> None:
         "username": "user@example.com",
         "password": "token",
     }
-    async with Assets(workspace_id="ws-1", auth=auth) as assets:
+    async with AsyncAssets_v1(workspace_id="ws-1", auth=auth) as assets:
         assets._client = httpx.AsyncClient(
             transport=transport,
             base_url=assets._base_url,

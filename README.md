@@ -1,6 +1,6 @@
 # Jira Service Management Python Bindings
 
-Async Python bindings for Jira Service Management API.
+Sync and async Python bindings for Jira Service Management API.
 
 - Service desk: https://developer.atlassian.com/cloud/jira/service-desk/rest/intro/
 - Operations (schedules, on-call): https://developer.atlassian.com/cloud/jira/service-desk-ops/rest/v2/intro/
@@ -34,44 +34,38 @@ You need Jira Cloud credentials (email + API token) and your site `cloud_id` for
 Replacement for `opsgenie.Schedules` after migrating on-call to Jira Service Management:
 
 ```python
-import asyncio
+from jsm import Schedules_v1
 
-from jsm import Schedules
+auth = {
+    "cloud_id": "<your-cloud-id>",
+    "username": "you@example.com",
+    "password": "<api-token>",
+}
 
-
-async def main():
-    async with Schedules(
-        auth={
-            "cloud_id": "<your-cloud-id>",
-            "username": "you@example.com",
-            "password": "<api-token>",
-        },
-    ) as schedules:
-        users = await schedules.get_users()
-        schedules_list = await schedules.get_schedules()
-        timeline = await schedules.get_schedule_timeline(
-            "<schedule-id>",
-            expand=True,
-            date="2026-05-01T00:00:00+02:00",
-            interval_unit="days",
-            interval=33,
-        )
-        print(users, schedules_list, timeline)
-
-
-asyncio.run(main())
+with Schedules_v1(auth=auth) as client:
+    users = client.get_users()
+    schedules_list = client.get_schedules()
+    timeline = client.get_schedule_timeline(
+        "<schedule-id>",
+        expand=True,
+        date="2026-05-01T00:00:00+02:00",
+        interval_unit="days",
+        interval=33,
+    )
 ```
+
+Async equivalent: `from jsm import AsyncSchedules_v1` with `async with` / `await`.
 
 ### Assets API
 
 ```python
 import asyncio
 
-from jsm import Assets
+from jsm import AsyncAssets_v1
 
 
 async def main():
-    async with Assets(
+    async with AsyncAssets_v1(
         workspace_id="...",
         auth={
             "url": "https://yoursite.atlassian.net/",
@@ -90,9 +84,9 @@ asyncio.run(main())
 
 | Before | After |
 |--------|-------|
-| `from jiraservicemanagement.api.v1 import Schedules` | `from jsm import Schedules` |
-| `schedules.get_users()` | `await schedules.get_users()` |
-| `Assets(workspaceId=...)` | `Assets(workspace_id=...)` |
+| `from jiraservicemanagement.api.v1 import Schedules` | `from jsm import Schedules_v1` or `AsyncSchedules_v1` |
+| `schedules.get_users()` | `client.get_users()` or `await client.get_users()` |
+| `Assets(workspaceId=...)` | `Assets_v1(workspace_id=...)` / `AsyncAssets_v1(workspace_id=...)` |
 | `atlassian-python-api` | `httpx` |
 
 ## Contributing

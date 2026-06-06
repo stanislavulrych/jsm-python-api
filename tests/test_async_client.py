@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from jsm import Schedules
+from jsm import AsyncSchedules_v1
 
 
 def _auth() -> dict[str, str]:
@@ -23,13 +23,13 @@ async def test_get_users_normalizes_response() -> None:
         return httpx.Response(404)
 
     transport = httpx.MockTransport(handler)
-    async with Schedules(auth=_auth()) as schedules:
-        schedules._client = httpx.AsyncClient(
+    async with AsyncSchedules_v1(auth=_auth()) as client:
+        client._client = httpx.AsyncClient(
             transport=transport,
-            base_url=schedules._base_url,
+            base_url=client._base_url,
             auth=httpx.BasicAuth("user@example.com", "token"),
         )
-        users = await schedules.get_users()
+        users = await client.get_users()
     assert users[0]["username"] == "a@b.com"
     assert users[0]["fullName"] == "Alice"
 
@@ -37,11 +37,11 @@ async def test_get_users_normalizes_response() -> None:
 @pytest.mark.asyncio
 async def test_get_users_returns_empty_on_404() -> None:
     transport = httpx.MockTransport(lambda _request: httpx.Response(404, text="not found"))
-    async with Schedules(auth=_auth()) as schedules:
-        schedules._client = httpx.AsyncClient(
+    async with AsyncSchedules_v1(auth=_auth()) as client:
+        client._client = httpx.AsyncClient(
             transport=transport,
-            base_url=schedules._base_url,
+            base_url=client._base_url,
             auth=httpx.BasicAuth("user@example.com", "token"),
         )
-        users = await schedules.get_users()
+        users = await client.get_users()
     assert users == []
